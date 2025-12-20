@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from routers import search
 from routers import match
+from routers import api
 
 app = FastAPI()
 
@@ -19,8 +20,12 @@ app.add_middleware(
 
 # 라우터 장착
 app.include_router(search.router)
-app.include_router(search.router)
 app.include_router(match.router)
+app.include_router(api.router)
+
+@app.get("/")
+def read_root():
+    return {"message": "LoL Coach AI Server is Running!"}
 
 if __name__ == "__main__":
     import uvicorn
