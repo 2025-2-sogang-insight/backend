@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from routers import search
 from routers import match
-from routers import api
+from routers import coach
 
 app = FastAPI()
 
@@ -21,7 +21,7 @@ app.add_middleware(
 # 라우터 장착
 app.include_router(search.router)
 app.include_router(match.router)
-app.include_router(api.router)
+app.include_router(coach.router)
 
 @app.get("/")
 def read_root():
