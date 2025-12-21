@@ -10,90 +10,124 @@ HEADERS = {
     "X-Riot-Token": API_KEY
 }
 
-def get_summoner_info(full_name: str):
-    # 1. 입력값 파싱
-    if "#" in full_name:
-        game_name, tag_line = full_name.split("#")
-    else:
-        game_name = full_name
-        tag_line = "KR1"
+REGION_TO_ROUTING = {
+    "KR": "asia", "JP": "asia",
+    "NA": "americas", "OCE": "americas",
+    "EUW": "europe", "EUNE": "europe", "ME1": "europe",
+}
 
-    print(f"[Riot Service] {game_name} #{tag_line} 검색 시작...")
+REGION_TO_PLATFORM = {
+    "KR": "kr", "JP": "jp1",
+    "NA": "na1", "OCE": "oc1",
+    "EUW": "euw1", "EUNE": "eun1", "ME1": "me1",
+}
 
-    # [수정된 부분] 닉네임에 한글/띄어쓰기가 있어도 안전하게 변환 (URL Encoding)
+def get_summoner_info(region_code: str, game_name: str, tag_line: str):
+    if not region_code: return None
+    region_code = region_code.upper()
+    routing = REGION_TO_ROUTING.get(region_code)
+    platform = REGION_TO_PLATFORM.get(region_code)
+    
+    if not routing or not platform:
+        print(f"[Error] 지원하지 않는 지역 코드: {region_code}")
+        return None
+
+    clean_tag_line = tag_line.replace("#", "")
     safe_game_name = quote(game_name)
-    safe_tag_line = quote(tag_line)
+    safe_tag_line = quote(clean_tag_line)
 
-    # --- Step 1: Account-V1 ---
-    # 주소에 변환된 이름(safe_game_name)을 넣습니다.
-    account_url = f"https://asia.api.riotgames.com/riot/account/v1/accounts/by-riot-id/{safe_game_name}/{safe_tag_line}"
+    url = f"https://{routing}.api.riotgames.com/riot/account/v1/accounts/by-riot-id/{safe_game_name}/{safe_tag_line}"
     
-    resp = requests.get(account_url, headers=HEADERS)
-    
-    if resp.status_code != 200:
-        print(f"[Error] Account API 실패: {resp.status_code} - {resp.text}")
-        return None
-    
-    account_data = resp.json()
-    puuid = account_data['puuid']
-    
-    # 닉네임이 바뀌었을 수도 있으니, API가 준 최신 이름으로 업데이트
-    real_game_name = account_data['gameName']
-    real_tag_line = account_data['tagLine']
-
-    # --- Step 2: Summoner-V4 ---
-    summoner_url = f"https://kr.api.riotgames.com/lol/summoner/v4/summoners/by-puuid/{puuid}"
-    
-    resp_sum = requests.get(summoner_url, headers=HEADERS)
-    
-    if resp_sum.status_code != 200:
-        print(f"[Error] Summoner API 실패: {resp_sum.status_code}")
-        return None
-
-    summoner_data = resp_sum.json()
-
-    return {
-        "puuid": puuid,
-        "game_name": real_game_name,
-        "tag_line": real_tag_line,
-        "level": summoner_data['summonerLevel'],
-        "profile_icon_id": summoner_data['profileIconId']
-    }
-    
-def get_recent_matches(puuid: str, count: int=5):
-    print(f"[Riot Service] PUUID로 최근 {count}게임 조회 시작...")
-    
-    # 1. 매치 ID 리스트 가져오기 (Asia 서버)
-    match_ids_url = f"https://asia.api.riotgames.com/lol/match/v5/matches/by-puuid/{puuid}/ids?start=0&count={count}"
-    resp = requests.get(match_ids_url, headers=HEADERS)
-    
-    if resp.status_code != 200:
-        return []
-    
-    match_ids = resp.json()
-    match_details = []
-    
-    # 2. 각 매치 상세 정보 가져오기
-    for match_id in match_ids:
-        url = f"https://asia.api.riotgames.com/lol/match/v5/matches/{match_id}"
-        m_resp = requests.get(url, headers=HEADERS)
+    try:
+        resp = requests.get(url, headers=HEADERS)
+        if resp.status_code != 200: return None
+        account_data = resp.json()
+        puuid = account_data['puuid']
         
-        if m_resp.status_code == 200:
+        # Summoner V4
+        sum_url = f"https://{platform}.api.riotgames.com/lol/summoner/v4/summoners/by-puuid/{puuid}"
+        resp_sum = requests.get(sum_url, headers=HEADERS)
+        if resp_sum.status_code != 200: return None
+        summoner_data = resp_sum.json()
+
+        return {
+            "puuid": puuid,
+            "game_name": account_data['gameName'],
+            "tag_line": account_data['tagLine'],
+            "profile_icon_id": summoner_data['profileIconId'],
+            "region": region_code 
+        }
+    except Exception as e:
+        print(f"[Error] API 호출 예외: {e}")
+        return None
+
+def get_recent_matches(puuid: str, region_code: str, count: int = 5):
+    region_code = region_code.upper()
+    routing = REGION_TO_ROUTING.get(region_code)
+    if not routing: return []
+
+    url = f"https://{routing}.api.riotgames.com/lol/match/v5/matches/by-puuid/{puuid}/ids?start=0&count={count}"
+    try:
+        resp = requests.get(url, headers=HEADERS)
+        if resp.status_code != 200: return []
+        match_ids = resp.json()
+    except:
+        return []
+
+    match_details = []
+    for match_id in match_ids:
+        prefix = match_id.split("_")[0].upper()
+        if prefix in ["KR", "JP"]: m_routing = "asia"
+        elif prefix in ["NA1", "BR1", "LA1", "OC1"]: m_routing = "americas"
+        elif prefix in ["EUW1", "EUN1", "TR1", "ME1"]: m_routing = "europe"
+        else: m_routing = routing
+
+        m_url = f"https://{m_routing}.api.riotgames.com/lol/match/v5/matches/{match_id}"
+        try:
+            m_resp = requests.get(m_url, headers=HEADERS)
+            if m_resp.status_code != 200: continue
             data = m_resp.json()
             info = data['info']
-            
-            # "나(검색한 사람)"의 정보만 찾기
-            participant = next((p for p in info['participants'] if p['puuid'] == puuid), None)
-            
-            if participant:
+            part = next((p for p in info['participants'] if p['puuid'] == puuid), None)
+            if part:
                 match_details.append({
                     "match_id": match_id,
-                    "champion_name": participant['championName'],
-                    "kills": participant['kills'],
-                    "deaths": participant['deaths'],
-                    "assists": participant['assists'],
-                    "win": participant['win'],  # True/False
-                    "game_mode": info['gameMode'] # ARAM, CLASSIC 등
+                    "champion_name": part['championName'],
+                    "kills": part['kills'],
+                    "deaths": part['deaths'],
+                    "assists": part['assists'],
+                    "win": part['win'],
+                    "game_mode": info['gameMode'],
+                    "game_creation": info['gameCreation']
                 })
-    
+        except: continue
     return match_details
+
+def get_match_detail(match_id: str):
+    """
+    매치 ID로 게임 정보(Info)와 타임라인(Timeline)을 모두 가져옵니다.
+    """
+    prefix = match_id.split("_")[0].upper()
+    if prefix in ["KR", "JP"]: routing = "asia"
+    elif prefix in ["NA1", "BR1", "LA1", "OC1"]: routing = "americas"
+    elif prefix in ["EUW1", "EUN1", "TR1", "ME1"]: routing = "europe"
+    else: routing = "asia"
+
+    base_url = f"https://{routing}.api.riotgames.com/lol/match/v5/matches/{match_id}"
+
+    try:
+        info_resp = requests.get(base_url, headers=HEADERS)
+        timeline_resp = requests.get(f"{base_url}/timeline", headers=HEADERS)
+
+        if info_resp.status_code != 200 or timeline_resp.status_code != 200:
+            print(f"[Error] 매치 데이터 조회 실패: {match_id}")
+            return None
+
+        return {
+            "match_id": match_id,
+            "info": info_resp.json(),
+            "timeline": timeline_resp.json()
+        }
+    except Exception as e:
+        print(f"[Error] get_match_detail 예외: {e}")
+        return None
