@@ -52,18 +52,21 @@ pip install -r requirements.txt
   
 ```
 backend/
-├── main.py                 # FastAPI 앱 엔트리포인트 
-├── routers/                # API 라우터 (기능별 분리)
-│   ├── coach.py            # AI 코칭/분석 API
-│   ├── match.py            # 매치 히스토리 조회
+├── main.py                 # FastAPI 서버 엔트리포인트 
+├── routers/                # API 라우터
+│   ├── coach.py            # AI 코칭 통합 엔드포인트
+│   ├── match.py            # 매치 데이터 조회
 │   └── search.py           # 소환사 검색
+├── cv/                     # [New] 컴퓨터 비전 & 영상 처리
+│   ├── process_video.py    # YOLOv8 영상 분석 및 객체 추적
+│   ├── extract_game_time.py# Gemini Vision 활용 게임 시간 동기화
+│   ├── report_vision.py    # Vision + API 데이터 기반 코칭 리포트 생성
+│   └── best.pt             # Custom 학습된 YOLO 모델 파일
 ├── rag/                    # RAG (검색 증강 생성) 서비스
-│   ├── service.py          # LangChain + LLM 분석 로직
-│   ├── settings.py         # 모델 파라미터 및 DB 설정
-│   └── create_db.py        # Vector DB 구축 스크립트
-├── services/               # 외부 연동
-│   └── riot_service.py     # Riot Games API 통신 핸들러
-└── schemas/                # 데이터 검증 (Pydantic)
+│   ├── service.py          # LangChain + Gemini 분석 로직
+│   └── create_db.py        # Vector DB 구축
+├── services/               # 외부 서비스 연동 (Riot API)
+└── schemas/                # Pydantic 데이터 모델
 ```
   
 </details>
@@ -81,129 +84,52 @@ backend/
 <summary><strong>Step </strong></summary>
   
 **Step 1: 소환사 식별 (Search)**
-> 소환사명으로 고유 식별자(PUUID)를 조회하여 분석 대상을 특정함
+> 소환사명으로 고유 식별자(PUUID)를 조회하여 분석 계정을 선택
 
 **Step 2: 데이터 확보 (Match)**
-> 해당 소환사의 최근 전적 리스트를 불러와 분석할 특정 경기를 선택함
+> 해당 소환사의 최근 전적 리스트를 불러와 분석할 경기를 선택
 
 **Step 3: 심층 분석 (Coach)**
-> 선택된 경기의 타임라인 데이터를 AI에게 전달하여 정밀 코칭 리포트를 생성함
+> 선택된 경기에 해당하는 API 데이터를 AI에게 전달하여 정밀 코칭 리포트를 생성함
 
 </details>
+
+### 1. 👁️ 멀티모달 AI 분석 (Multi-modal AI Analysis)
+텍스트 데이터(API)와 시각 데이터(Video)를 모두 이용하여 게임에 대한 전반적인 내용과 플레이어의 교전 플레이에 대해 분석합니다.
+
+- **Object Detection (YOLOv8)**: 
+  - 인게임 영상에서 챔피언 객체를 탐지합니다.
+  - 좌표 데이터를 추출하여 플레이어의 포지셔닝(Positioning) 및 무빙을 픽셀 단위로 분석합니다. (`cv/process_video.py`)
+
+- **Visual Time Sync (Gemini Vision)**:
+  - 영상의 타임스탬프와 실제 게임 시간을 동기화하기 위해 Gemini Vision 모델이 게임 화면 내 시간을 OCR을 통해 인식합니다.
+  - 이를 통해 영상의 타임라인에 해당하는 Riot API 데이터를 정확하게 매칭합니다. (`cv/extract_game_time.py`)
+
+### 2. 🤖 RAG 기반 정밀 코칭 (RAG Coaching)
+- **지식 검색 (RAG)**: ChromaDB에 저장된 프로 선수들의 운영법/공략 데이터를 이용해 사용자의 플레이 데이터를 분석합니다.
+- **게임 피드백 제공**: 사용자가 선택한 게임에 해당하는 API 데이터를 이용하여 게임에 대한 다양한 시각의 피드백을 제공합니다.
+
+### 3. 📊 종합 데이터 파이프라인
+1. **소환사 검색 & 매치 조회**: 소환사 이름을 이용해 분석을 원하는 매치 선택 및 API 데이터 추출
+2. **매치 분석** : 분석 매치에 해당하는 API 데이터를 이용해 LLM이 사용자에게 제공할 수 있는 피드백 구성
+3. **대상 영상 분석**: YOLO로 객체 위칫값 추출 & Gemini로 게임 시간 동기화
+4. **타임라인 결합**: Vision 데이터와 Riot Match-V5 타임라인 데이터 결합 (`cv/report_vision.py`)후 LLM이 상황을 종합
+5. **최종 코칭**: 매치를 분석한 피드백과 영상을 분석한 피드백을 사용자에게 제공
+
 
 
 
 <br/>
 
-### <mark>🔍 1. 소환사 검색 (Search)</mark>
+## 🛠 기술 스택 (Tech Stack)
 
-<details>
-<summary><strong>API 엔드포인트 </strong></summary>
-  
-`GET /search/{summoner_name}/{tagline}`
-
-</details>
-
-<details>
-<summary><strong>기능 설명 </strong></summary>
-  
-- **기본 정보**: 태그라인을 포함한 소환사명으로 PUUID 및 레벨 조회
-- **전적 요약**: 최근 20게임의 승률 기여도 및 주력 챔피언 분석
-
-</details>
+| 구분 | 기술 스택 | 설명 |
+|------|-----------|------|
+| **Framework** | **FastAPI** | 고성능 비동기 Python 웹 프레임워크 |
+| **Vision AI** | **YOLOv8** | 실시간 객체 탐지 및 추적 (Tracking) |
+| **Generative AI**| **Google Gemini Pro/Flash** | 텍스트 분석 및 Vision(이미지 인식) 처리 |
+| **Orchestration**| **LangChain** | LLM 프롬프트 관리 및 체이닝 |
+| **Vector DB** | **ChromaDB** | 유사도 검색을 위한 임베딩 저장소 |
+| **Data Source** | **Riot Games API** | Match-V5, Summoner-V4 데이터 |
 
 <br/>
-
-### <mark>⚔️ 2. 매치 상세 조회 (Match)</mark>
-
-<details>
-<summary><strong>API 엔드포인트 </strong></summary>
-  
-`GET /match/{match_id}`
-
-</details>
-
-<details>
-<summary><strong>기능 설명 </strong></summary>
-  
-- **세부 스탯**: 분당 데미지(DPM), 시야 점수, 골드 격차 등 상세 지표 제공
-- **타임라인**: 시간대별 아이템 빌드 및 동선 데이터 확보하여 AI 분석의 기초 데이터로 활용
-
-</details>
-
-
-
-<br/>
-
-### <mark>🤖 3. AI 게임 코칭 (Coach)</mark>
-
-<details>
-<summary><strong>API 엔드포인트 </strong></summary>
-  
-`POST /coach/analyze`
-
-</details>
-
-<details>
-<summary><strong>기능 설명 </strong></summary>
-  
-- **데이터 종합**: Match 단계에서 확보한 데이터와 타임라인을 결합
-- **심층 분석**: LLM이 승패 요인을 파악하고 구체적인 피드백을 생성함
-
-</details>
-
-<details>
-<summary><strong>분석 프로세스 </strong></summary>
-  
-**① 데이터 요약**: 수천 줄의 복잡한 원본(Raw) JSON 데이터에서 핵심 지표(KDA, 골드, 아이템, 딜량)만 추출<br>
-**② 중요 장면 감지**: 킬/데스, 오브젝트 처치 등 게임의 승부처(Turning Point) 자동 식별<br>
-**③ 지식 검색 (RAG)**: ChromaDB에서 해당 챔피언의 정석 운영법과 상대법을 검색하여 참조<br>
-**④ 리포트 생성**: 위 정보를 바탕으로 코칭 리포트(한줄평, 상세 분석) 작성
-
-</details>
-
-<details>
-<summary><strong>분석 예시 </strong></summary>
-  
-- **입력 (Input)**: `페이커(아리) vs 쵸비(요네)` 미드 라인전 데이터 + 15분 용 앞 한타 데이터
-- **출력 (Output)**:
-- **한줄평**: "초반 라인전 주도권은 좋았으나, 15분 용 앞 한타에서 포지셔닝 실수로 제압골을 내준 것이 패인입니다."
-- **피드백**: "요네 상대로는 E(매혹)를 아끼고 Q 끝사거리를 유지하며 견제하는 것이 핵심입니다."
-
-
-</details>
-
-
-<br>
-
-## 🛠 기술 스택 (Tech Stack)</h2></summary>
-
-### <mark>📃 스택 목록</mark>
-
-<details>
-<summary><strong>Framework & Language </strong></summary>
-
-- **Python**: 데이터 분석 및 AI 라이브러리 활용에 최적화
-- **FastAPI**: 비동기 처리 지원 및 자동 문서화(Swagger) 강점
-
-</details>
-
-<details>
-<summary><strong>AI & Database </strong></summary>
-
-- **LangChain**: LLM 페르소나 설정 및 프롬프트 체이닝 관리
-- **Google Gemini Pro**: 높은 성능과 긴 컨텍스트 처리가 가능한 LLM 모델 사용
-- **ChromaDB**: 벡터 임베딩 저장 및 유사도 검색을 위한 경량화 DB
-
-</details>
-
-<details>
-<summary><strong>External API </strong></summary>
-
-- **Riot Games API**: 공식 인게임 데이터 원천 (Match-V5, Summoner-V4)
-
-</details>
-
-
-
-</details>
