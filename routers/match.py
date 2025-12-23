@@ -20,6 +20,12 @@ class MatchPreview(BaseModel):
     champion_name: str
     win: bool
     game_creation: int
+    game_mode: Optional[str] = None
+    game_duration: Optional[int] = None
+    kills: Optional[int] = None
+    deaths: Optional[int] = None
+    assists: Optional[int] = None
+    kda: Optional[float] = None
 
 class FullGameContext(BaseModel):
     match_data: Dict[str, Any]

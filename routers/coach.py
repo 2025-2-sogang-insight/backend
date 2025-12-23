@@ -24,6 +24,7 @@ class FullGameContext(BaseModel):
     target_puuid: Optional[str] = Field(None, description="분석 대상 PUUID")
 
 class AnalysisResponse(BaseModel):
+    player_keyword : str
     one_line_review: str
     match_flow: Any
     skirmish_analysis: Any
