@@ -101,7 +101,9 @@ backend/
 </details>
 
 ### 1. 👁️ 멀티모달 AI 분석 (Multi-modal AI Analysis)
-![alt text](image.png)
+
+<img width="851" height="411" alt="image" src="https://github.com/user-attachments/assets/eb802bea-a8f5-4dd2-891b-259bf39fc8e2" />
+
 텍스트 데이터(API)와 시각 데이터(Video)를 모두 이용하여 게임에 대한 전반적인 내용과 플레이어의 교전 플레이에 대해 분석합니다.
 
 - **Object Detection (YOLOv8)**: 
@@ -133,3 +135,4 @@ backend/
 | **Orchestration**| **LangChain** | LLM 프롬프트 관리 및 체이닝 |
 | **Vector DB** | **ChromaDB** | 유사도 검색을 위한 임베딩 저장소 |
 | **Data Source** | **Riot Games API** | Match-V5, Summoner-V4 데이터 |
+
