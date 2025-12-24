@@ -54,25 +54,29 @@ uvicorn main:app --reload
   <summary><strong>디렉토리 구조</strong></summary>
   
 ```
-backend/
-
-├── main.py                 # FastAPI 서버 엔트리포인트 
-├── routers/                # API 라우터
-│   ├── coach.py            # AI 코칭 통합 엔드포인트
-│   ├── match.py            # 매치 데이터 조회
-│   └── search.py           # 소환사 검색
-├── cv/                     # [New] 컴퓨터 비전 & 영상 처리
-│   ├── process_video.py    # YOLOv8 영상 분석 및 객체 추적
-│   ├── extract_game_time.py# Gemini Vision 활용 게임 시간 동기화
-│   ├── report_vision.py    # Vision + API 데이터 기반 코칭 리포트 생성
-│   └── best.pt             # Custom 학습된 YOLO 모델 파일
-├── rag/                    # RAG (검색 증강 생성) 서비스
-│   ├── service.py          # LangChain + LLM 분석 로직
-│   ├── settings.py         # 모델 파라미터 및 DB 설정
-│   └── create_db.py        # Vector DB 구축 스크립트
-├── services/               # 외부 연동
-│   └── riot_service.py     # Riot Games API 통신 핸들러
-└── schemas/                # 데이터 검증 (Pydantic)
+backend
+  ├── cv                         # [New] 컴퓨터 비전 & 영상 처리
+  │   ├── best.pt                # 학습된 YOLO 모델 파일
+  │   ├── extract_game_time.py   # Gemini Vision 활용 게임 시간 동기화
+  │   ├── match_champion.py      # 영상 속 출연하는 챔피언과 match에 있는 챔피언 맵핑
+  │   ├── process_video.py       # YOLOv8 영상 분석 및 객체 추적
+  │   └── report_vision.py       # Vision + API 데이터 기반 코칭 리포트 생성
+  ├── main.py                    # FastAPI 서버 엔트리포인트 
+  ├── rag                        # RAG (검색 증강 생성) 서비스
+  │   ├── create_db.py           # Vector DB 구축 스크립트
+  │   ├── service.py             # LangChain + LLM 분석 로직
+  │   └── settings.py            # 모델 파라미터 및 DB 설정
+  ├── README.md
+  ├── requirements.txt
+  ├── routers                    # API 라우터
+  │   ├── coach.py               # AI 코칭 통합 엔드포인트
+  │   ├── match.py               # 매치 데이터 조회
+  │   └── search.py              # 소환사 검색
+  ├── schemas                    # 데이터 검증 (Pydantic)
+  │   └── search_schema.py
+  └── services                   # 외부 연동
+      ├── process_service.py
+      └── riot_service.py            
 ```
   
 </details>
@@ -135,4 +139,5 @@ backend/
 | **Orchestration**| **LangChain** | LLM 프롬프트 관리 및 체이닝 |
 | **Vector DB** | **ChromaDB** | 유사도 검색을 위한 임베딩 저장소 |
 | **Data Source** | **Riot Games API** | Match-V5, Summoner-V4 데이터 |
+
 
