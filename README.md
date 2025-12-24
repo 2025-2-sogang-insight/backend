@@ -38,8 +38,11 @@ pip install -r requirements.txt
 <details>
 <summary><strong>3. 서버 실행</strong></summary>
 
-- **보안**: API 키는 코드에 노출하지 않고 `.env` 파일로 관리함
-- **설정값**: `RIOT_API_KEY`, `GOOGLE_API_KEY` 필수 입력
+- **개발 모드**: 자동 재시작(Hot Reload) 지원 모드로 서버 실행
+- **접속 주소**: http://localhost:8000 (Swagger UI: /docs)
+```bash
+uvicorn main:app --reload
+```
 </details>
 <br>
 
@@ -52,6 +55,7 @@ pip install -r requirements.txt
   
 ```
 backend/
+
 ├── main.py                 # FastAPI 서버 엔트리포인트 
 ├── routers/                # API 라우터
 │   ├── coach.py            # AI 코칭 통합 엔드포인트
@@ -63,10 +67,12 @@ backend/
 │   ├── report_vision.py    # Vision + API 데이터 기반 코칭 리포트 생성
 │   └── best.pt             # Custom 학습된 YOLO 모델 파일
 ├── rag/                    # RAG (검색 증강 생성) 서비스
-│   ├── service.py          # LangChain + Gemini 분석 로직
-│   └── create_db.py        # Vector DB 구축
-├── services/               # 외부 서비스 연동 (Riot API)
-└── schemas/                # Pydantic 데이터 모델
+│   ├── service.py          # LangChain + LLM 분석 로직
+│   ├── settings.py         # 모델 파라미터 및 DB 설정
+│   └── create_db.py        # Vector DB 구축 스크립트
+├── services/               # 외부 연동
+│   └── riot_service.py     # Riot Games API 통신 핸들러
+└── schemas/                # 데이터 검증 (Pydantic)
 ```
   
 </details>
@@ -117,12 +123,7 @@ backend/
 4. **타임라인 결합**: Vision 데이터와 Riot Match-V5 타임라인 데이터 결합 (`cv/report_vision.py`)후 LLM이 상황을 종합
 5. **최종 코칭**: 매치를 분석한 피드백과 영상을 분석한 피드백을 사용자에게 제공
 
-
-
-
 <br/>
-
-## 🛠 기술 스택 (Tech Stack)
 
 | 구분 | 기술 스택 | 설명 |
 |------|-----------|------|
@@ -132,5 +133,3 @@ backend/
 | **Orchestration**| **LangChain** | LLM 프롬프트 관리 및 체이닝 |
 | **Vector DB** | **ChromaDB** | 유사도 검색을 위한 임베딩 저장소 |
 | **Data Source** | **Riot Games API** | Match-V5, Summoner-V4 데이터 |
-
-<br/>
