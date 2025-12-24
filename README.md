@@ -95,6 +95,7 @@ backend/
 </details>
 
 ### 1. 👁️ 멀티모달 AI 분석 (Multi-modal AI Analysis)
+![alt text](image.png)
 텍스트 데이터(API)와 시각 데이터(Video)를 모두 이용하여 게임에 대한 전반적인 내용과 플레이어의 교전 플레이에 대해 분석합니다.
 
 - **Object Detection (YOLOv8)**: 
